@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Sheets Data Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <canvas id="powerChart" width="400" height="200"></canvas>
+    <canvas id="energyChart" width="400" height="200"></canvas>
+
+    <script>
+        const SHEET_ID = '1wdVWslNkaJgDDiSBKXIS5Ka7UQGLs_RbIymFPuNj0kY';
+        const API_KEY = 'your-api-key';  // Replace 'your-api-key' with your actual API key
+        const RANGE = 'Sheet1!A1:D10'; // Replace with the actual range in your sheet
+
+        async function fetchData() {
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            return data.values;
+        }
+
+        function processData(values) {
+            const labels = values.slice(1).map(row => row[0]); // Adjust based on your data structure
+            const powerData = values.slice(1).map(row => parseFloat(row[1])); // Adjust based on your data structure
+            const energyData = values.slice(1).map(row => parseFloat(row[2])); // Adjust based on your data structure
+            
+            return { labels, powerData, energyData };
+        }
+
+        function createChart(data, elementId, label) {
+            new Chart(document.getElementById(elementId), {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: label,
+                        data: data.data,
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                }
+            });
+        }
+
+        fetchData().then(values => {
+            const data = processData(values);
+            createChart({ labels: data.labels, data: data.powerData }, 'powerChart', 'Instant Power');
+            createChart({ labels: data.labels, data: data.energyData }, 'energyChart', 'Energy Yield');
+        });
+
+        // Optional: Set up periodic data refresh every minute
+        setInterval(() => {
+            fetchData().then(values => {
+                const data = processData(values);
+                createChart({ labels: data.labels, data: data.powerData }, 'powerChart', 'Instant Power');
+                createChart({ labels: data.labels, data: data.energyData }, 'energyChart', 'Energy Yield');
+            });
+        }, 60000); // Updates every minute
+
+    </script>
+</body>
+</html>
