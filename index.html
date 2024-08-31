@@ -81,11 +81,11 @@
 
     <script>
         const SHEET_ID = '1wdVWslNkaJgDDiSBKXIS5Ka7UQGLs_RbIymFPuNj0kY';
-        const API_KEY = 'AIzaSyDIoC1hZ3tbZgyiz_cRb0vhxM7usy2aI9M';  // Use your actual API key
+        const API_KEY = 'AIzaSyDIoC1hZ3tbZgyiz_cRb0vhxM7usy2aI9M';
         const RANGE = 'Sheet1!A1:L100'; // Adjust range to include enough data
 
-        let sheetData = [];  // Global variable to store fetched data
-        let currentChart = null;  // To store the currently active chart
+        let sheetData = [];
+        let currentChart = null;
 
         async function fetchData() {
             const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}`;
@@ -93,7 +93,7 @@
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
-                sheetData = data.values;  // Store data in the global variable
+                sheetData = data.values;
                 populateDropdown(sheetData);
                 return sheetData;
             } catch (error) {
@@ -116,16 +116,26 @@
 
         function calculateEnergyYield(panelIndex, startIndex) {
             let energyYield = 0;
-            let interval = 5 / 60; // 5 minutes interval converted to hours
 
-            for (let i = startIndex; i < sheetData.length; i++) { // Start from the selected index
-                const row = sheetData[i];
-                const current = parseFloat(row[3 + (panelIndex * 2)]);
-                const voltage = parseFloat(row[4 + (panelIndex * 2)]);
+            for (let i = startIndex; i < sheetData.length - 1; i++) {
+                const row1 = sheetData[i];
+                const row2 = sheetData[i + 1];
+                const current1 = parseFloat(row1[3 + (panelIndex * 2)]);
+                const voltage1 = parseFloat(row1[4 + (panelIndex * 2)]);
 
-                if (!isNaN(current) && !isNaN(voltage)) { // Ensure both values are numbers
-                    const power = current * voltage;
-                    energyYield += power * interval;
+                const current2 = parseFloat(row2[3 + (panelIndex * 2)]);
+                const voltage2 = parseFloat(row2[4 + (panelIndex * 2)]);
+
+                if (!isNaN(current1) && !isNaN(voltage1) && !isNaN(current2) && !isNaN(voltage2)) {
+                    const power1 = current1 * voltage1;
+                    const power2 = current2 * voltage2;
+
+                    const time1 = new Date(row1[0]).getTime();
+                    const time2 = new Date(row2[0]).getTime();
+                    const intervalHours = (time2 - time1) / (1000 * 60 * 60); // Convert ms to hours
+
+                    const avgPower = (power1 + power2) / 2;
+                    energyYield += avgPower * intervalHours;
                 }
             }
 
@@ -143,14 +153,11 @@
                 return;
             }
 
-            // Extract the latest data row
             const latestData = data[data.length - 1];
 
-            // Update panels
             document.getElementById('timeDatePanel').innerHTML = `Time/Date: ${latestData[0]}`;
             document.getElementById('tempHumPanel').innerHTML = `Temp: ${latestData[1]}, Humidity: ${latestData[2]}, Irradiance: ${latestData[19]}`;
 
-            // Update each panel
             for (let i = 0; i < 6; i++) {
                 const current = parseFloat(latestData[3 + (i * 2)]);
                 const voltage = parseFloat(latestData[4 + (i * 2)]);
@@ -161,7 +168,7 @@
                     Current: ${isNaN(current) ? 'N/A' : current.toFixed(2)} A<br>
                     Voltage: ${isNaN(voltage) ? 'N/A' : voltage.toFixed(2)} V<br>
                     Power: ${isNaN(power) ? 'N/A' : power} W<br>
-                    Energy Yield: ${isNaN(energyYield) ? 'N/A' : energyYield} kWh
+                    Energy Yield: ${isNaN(energyYield) ? 'N/A' : energyYield} Wh
                 `;
             }
         }
@@ -172,14 +179,13 @@
                 return;
             }
 
-            // Destroy the previous chart if it exists
             if (currentChart) {
                 currentChart.destroy();
             }
 
             document.getElementById('chartContainer').style.display = 'block';
 
-            const labels = sheetData.slice(1).map(row => row[0]); // Time/Date
+            const labels = sheetData.slice(1).map(row => row[0]);
             const currentData = sheetData.slice(1).map(row => parseFloat(row[3 + (panelIndex - 1) * 2]));
             const voltageData = sheetData.slice(1).map(row => parseFloat(row[4 + (panelIndex - 1) * 2]));
             const powerData = currentData.map((curr, idx) => {
@@ -215,17 +221,15 @@
             });
         }
 
-        // Initial call to fetch and display data
         fetchData().then(data => {
             updateDashboard(data);
         });
 
-        // Set interval to refresh data every 5 minutes
         setInterval(() => {
             fetchData().then(data => {
                 updateDashboard(data);
             });
-        }, 300000); // 300000 ms = 5 minutes
+        }, 300000);
 
     </script>
 </body>
