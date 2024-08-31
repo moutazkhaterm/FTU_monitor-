@@ -65,8 +65,10 @@
 
     <script>
         const SHEET_ID = '1wdVWslNkaJgDDiSBKXIS5Ka7UQGLs_RbIymFPuNj0kY';
-        const API_KEY = 'AIzaSyDIoC1hZ3tbZgyiz_cRb0vhxM7usy2aI9M';  // Replace with your actual API key
+        const API_KEY = 'AIzaSyDIoC1hZ3tbZgyiz_cRb0vhxM7usy2aI9M';  // Use your actual API key
         const RANGE = 'Sheet1!A1:L100'; // Adjust range to include enough data
+
+        let sheetData = [];  // Global variable to store fetched data
 
         async function fetchData() {
             const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}`;
@@ -74,7 +76,8 @@
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
-                return data.values;
+                sheetData = data.values;  // Store data in the global variable
+                return sheetData;
             } catch (error) {
                 console.error('Error fetching data:', error);
                 return [];
@@ -110,12 +113,16 @@
         }
 
         function showChart(panelIndex) {
+            if (sheetData.length < 2) {
+                console.error('No data available to show chart');
+                return;
+            }
+
             document.getElementById('chartContainer').style.display = 'block';
 
-            // Assuming the 'data' variable contains your fetched data
-            const labels = data.slice(1).map(row => row[0]); // Time/Date
-            const currentData = data.slice(1).map(row => parseFloat(row[3 + (panelIndex - 1) * 2]));
-            const voltageData = data.slice(1).map(row => parseFloat(row[4 + (panelIndex - 1) * 2]));
+            const labels = sheetData.slice(1).map(row => row[0]); // Time/Date
+            const currentData = sheetData.slice(1).map(row => parseFloat(row[3 + (panelIndex - 1) * 2]));
+            const voltageData = sheetData.slice(1).map(row => parseFloat(row[4 + (panelIndex - 1) * 2]));
             const powerData = currentData.map((curr, idx) => curr * voltageData[idx]);
 
             new Chart(document.getElementById('panelChart'), {
