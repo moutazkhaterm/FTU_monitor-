@@ -3,17 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google Sheets Data Visualization</title>
+    <title>SafaSun by LAB7</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            background-color: #f0f0f0;
+        }
+        .block {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin: 20px;
+            padding: 20px;
+            width: 300px;
+            text-align: center;
+            cursor: pointer;
+        }
+        .title {
+            width: 100%;
+            text-align: center;
+            font-size: 24px;
+            margin: 20px 0;
+        }
+        .canvas-container {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+        .close-btn {
+            margin-top: 10px;
+            cursor: pointer;
+        }
+    </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <canvas id="powerChart" width="400" height="200"></canvas>
-    <canvas id="energyChart" width="400" height="200"></canvas>
+    <div class="title">SafaSun by LAB7</div>
+    <div id="time-date" class="block">Loading...</div>
+    <div id="temp-hum-irr" class="block">Loading...</div>
+    <div id="panel1" class="block">Panel 1: Loading...</div>
+    <div id="panel2" class="block">Panel 2: Loading...</div>
+    <div id="panel3" class="block">Panel 3: Loading...</div>
+    <div id="panel4" class="block">Panel 4: Loading...</div>
+    <div id="panel5" class="block">Panel 5: Loading...</div>
+    <div id="panel6" class="block">Panel 6: Loading...</div>
+
+    <!-- Canvas Container for Charts -->
+    <div class="canvas-container" id="chartContainer">
+        <canvas id="chartCanvas"></canvas>
+        <div class="close-btn" onclick="closeChart()">Close</div>
+    </div>
 
     <script>
+        // Initialize global variables
         const SHEET_ID = '1wdVWslNkaJgDDiSBKXIS5Ka7UQGLs_RbIymFPuNj0kY';
-        const API_KEY = 'AIzaSyDIoC1hZ3tbZgyiz_cRb0vhxM7usy2aI9M';  // Replace 'your-api-key' with your actual API key
-        const RANGE = 'Sheet1!A1:D10'; // Replace with the actual range in your sheet
+        const API_KEY = 'your-api-key'; // Replace with your actual API key
+        const RANGE = 'Sheet1!A1:Z'; // Replace with the actual range in your sheet
 
         async function fetchData() {
             const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}`;
@@ -22,44 +77,96 @@
             return data.values;
         }
 
-        function processData(values) {
-            const labels = values.slice(1).map(row => row[0]); // Adjust based on your data structure
-            const powerData = values.slice(1).map(row => parseFloat(row[1])); // Adjust based on your data structure
-            const energyData = values.slice(1).map(row => parseFloat(row[2])); // Adjust based on your data structure
+        function displayData(values) {
+            const latestData = values[values.length - 1];
+            document.getElementById('time-date').innerText = `Time/Date: ${latestData[0]}`;
+            document.getElementById('temp-hum-irr').innerText = `Temp: ${latestData[1]}, Humidity: ${latestData[2]}, Irradiance: ${latestData[19]}`;
             
-            return { labels, powerData, energyData };
+            for (let i = 0; i < 6; i++) {
+                const currentIdx = 3 + i * 2;
+                const voltageIdx = 4 + i * 2;
+                document.getElementById(`panel${i + 1}`).innerText = `Panel ${i + 1}\nCurrent: ${latestData[currentIdx]} A\nVoltage: ${latestData[voltageIdx]} V\nPower: ${(latestData[currentIdx] * latestData[voltageIdx]).toFixed(2)} W\nEnergy Yield: ${calculateEnergyYield(values, currentIdx, voltageIdx)} kWh`;
+            }
         }
 
-        function createChart(data, elementId, label) {
-            new Chart(document.getElementById(elementId), {
+        function calculateEnergyYield(values, currentIdx, voltageIdx) {
+            // Example calculation function for energy yield, adjust as needed
+            let energy = 0;
+            for (let i = 1; i < values.length; i++) {
+                const current = parseFloat(values[i][currentIdx]);
+                const voltage = parseFloat(values[i][voltageIdx]);
+                const power = current * voltage;
+                energy += power * (15 / 60); // Assuming 15 minutes interval
+            }
+            return (energy / 1000).toFixed(2); // Convert to kWh
+        }
+
+        function createChart(panel, chartData) {
+            const ctx = document.getElementById('chartCanvas').getContext('2d');
+            new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: data.labels,
-                    datasets: [{
-                        label: label,
-                        data: data.data,
-                        borderColor: 'rgb(75, 192, 192)',
-                        tension: 0.1
-                    }]
+                    labels: chartData.dates,
+                    datasets: [
+                        {
+                            label: `${panel} Current (A)`,
+                            data: chartData.currents,
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1
+                        },
+                        {
+                            label: `${panel} Voltage (V)`,
+                            data: chartData.voltages,
+                            borderColor: 'rgb(192, 75, 75)',
+                            tension: 0.1
+                        },
+                        {
+                            label: `${panel} Power (W)`,
+                            data: chartData.powers,
+                            borderColor: 'rgb(75, 75, 192)',
+                            tension: 0.1
+                        }
+                    ]
                 }
+            });
+            document.getElementById('chartContainer').style.display = 'block';
+        }
+
+        function showChart(panelNumber) {
+            fetchData().then(values => {
+                const chartData = { dates: [], currents: [], voltages: [], powers: [] };
+                const currentIdx = 3 + (panelNumber - 1) * 2;
+                const voltageIdx = 4 + (panelNumber - 1) * 2;
+
+                for (let i = 1; i < values.length; i++) {
+                    const date = values[i][0];
+                    const current = parseFloat(values[i][currentIdx]);
+                    const voltage = parseFloat(values[i][voltageIdx]);
+                    chartData.dates.push(date);
+                    chartData.currents.push(current);
+                    chartData.voltages.push(voltage);
+                    chartData.powers.push((current * voltage).toFixed(2));
+                }
+                createChart(`Panel ${panelNumber}`, chartData);
             });
         }
 
-        fetchData().then(values => {
-            const data = processData(values);
-            createChart({ labels: data.labels, data: data.powerData }, 'powerChart', 'Instant Power');
-            createChart({ labels: data.labels, data: data.energyData }, 'energyChart', 'Energy Yield');
-        });
+        function closeChart() {
+            document.getElementById('chartContainer').style.display = 'none';
+            document.getElementById('chartCanvas').getContext('2d').clearRect(0, 0, 400, 200);
+        }
 
-        // Optional: Set up periodic data refresh every minute
-        setInterval(() => {
-            fetchData().then(values => {
-                const data = processData(values);
-                createChart({ labels: data.labels, data: data.powerData }, 'powerChart', 'Instant Power');
-                createChart({ labels: data.labels, data: data.energyData }, 'energyChart', 'Energy Yield');
-            });
-        }, 60000); // Updates every minute
+        // Event listeners for panel clicks
+        document.getElementById('panel1').onclick = () => showChart(1);
+        document.getElementById('panel2').onclick = () => showChart(2);
+        document.getElementById('panel3').onclick = () => showChart(3);
+        document.getElementById('panel4').onclick = () => showChart(4);
+        document.getElementById('panel5').onclick = () => showChart(5);
+        document.getElementById('panel6').onclick = () => showChart(6);
 
+        // Fetch and display data on load
+        fetchData().then(displayData);
+        setInterval(() => fetchData().then(displayData), 240000); // Update every 4 minutes
     </script>
 </body>
 </html>
