@@ -85,6 +85,24 @@
             }
         }
 
+        function calculateEnergyYield(panelIndex) {
+            let energyYield = 0;
+            let interval = 5 / 60; // 5 minutes interval converted to hours
+
+            for (let i = 1; i < sheetData.length; i++) { // Start from 1 to skip headers
+                const row = sheetData[i];
+                const current = parseFloat(row[3 + (panelIndex * 2)]);
+                const voltage = parseFloat(row[4 + (panelIndex * 2)]);
+
+                if (!isNaN(current) && !isNaN(voltage)) { // Ensure both values are numbers
+                    const power = current * voltage;
+                    energyYield += power * interval;
+                }
+            }
+
+            return energyYield.toFixed(2);
+        }
+
         function updateDashboard(data) {
             if (data.length < 2) {
                 console.error('No data found');
@@ -103,12 +121,13 @@
                 const current = parseFloat(latestData[3 + (i * 2)]);
                 const voltage = parseFloat(latestData[4 + (i * 2)]);
                 const power = (current * voltage).toFixed(2);
+                const energyYield = calculateEnergyYield(i);
                 document.getElementById(`panel${i+1}`).innerHTML = `
                     Panel ${i+1}<br>
-                    Current: ${current.toFixed(2)} A<br>
-                    Voltage: ${voltage.toFixed(2)} V<br>
-                    Power: ${power} W<br>
-                    Energy Yield: NaN kWh
+                    Current: ${isNaN(current) ? 'N/A' : current.toFixed(2)} A<br>
+                    Voltage: ${isNaN(voltage) ? 'N/A' : voltage.toFixed(2)} V<br>
+                    Power: ${isNaN(power) ? 'N/A' : power} W<br>
+                    Energy Yield: ${isNaN(energyYield) ? 'N/A' : energyYield} kWh
                 `;
             }
         }
@@ -129,7 +148,10 @@
             const labels = sheetData.slice(1).map(row => row[0]); // Time/Date
             const currentData = sheetData.slice(1).map(row => parseFloat(row[3 + (panelIndex - 1) * 2]));
             const voltageData = sheetData.slice(1).map(row => parseFloat(row[4 + (panelIndex - 1) * 2]));
-            const powerData = currentData.map((curr, idx) => curr * voltageData[idx]);
+            const powerData = currentData.map((curr, idx) => {
+                const voltage = voltageData[idx];
+                return !isNaN(curr) && !isNaN(voltage) ? curr * voltage : NaN;
+            });
 
             currentChart = new Chart(document.getElementById('panelChart'), {
                 type: 'line',
