@@ -69,6 +69,7 @@
         const RANGE = 'Sheet1!A1:L100'; // Adjust range to include enough data
 
         let sheetData = [];  // Global variable to store fetched data
+        let currentChart = null;  // To store the currently active chart
 
         async function fetchData() {
             const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}`;
@@ -118,6 +119,11 @@
                 return;
             }
 
+            // Destroy the previous chart if it exists
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
             document.getElementById('chartContainer').style.display = 'block';
 
             const labels = sheetData.slice(1).map(row => row[0]); // Time/Date
@@ -125,7 +131,7 @@
             const voltageData = sheetData.slice(1).map(row => parseFloat(row[4 + (panelIndex - 1) * 2]));
             const powerData = currentData.map((curr, idx) => curr * voltageData[idx]);
 
-            new Chart(document.getElementById('panelChart'), {
+            currentChart = new Chart(document.getElementById('panelChart'), {
                 type: 'line',
                 data: {
                     labels: labels,
