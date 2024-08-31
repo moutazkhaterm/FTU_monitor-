@@ -4,190 +4,96 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SafaSun by LAB7</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            background-color: #f0f0f0;
-        }
-        .panel {
-            background-color: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-            transition: transform 0.2s;
-            width: 200px;
-            text-align: center;
-        }
-        .panel:hover {
-            transform: scale(1.05);
-        }
-        .panel h2 {
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-        #chartContainer {
-            width: 80%;
-            height: 400px;
-            margin: 20px auto;
-            display: none;
-        }
-        #safasun-title {
-            width: 100%;
-            text-align: center;
-            font-size: 24px;
-            margin: 20px 0;
-        }
-        #dropdown-container {
-            width: 100%;
-            text-align: center;
-            margin: 10px 0;
-        }
-        select {
-            padding: 5px;
-            font-size: 16px;
-        }
-    </style>
-</head>
-<body>
-
-    <div id="safasun-title">SafaSun by LAB7</div>
-    <div id="timeDatePanel" class="panel">Time/Date: Loading...</div>
-    <div id="tempHumPanel" class="panel">Loading...</div>
-    
-    <div id="panel1" class="panel" onclick="showChart(1)">Panel 1: Loading...</div>
-    <div id="panel2" class="panel" onclick="showChart(2)">Panel 2: Loading...</div>
-    <div id="panel3" class="panel" onclick="showChart(3)">Panel 3: Loading...</div>
-    <div id="panel4" class="panel" onclick="showChart(4)">Panel 4: Loading...</div>
-    <div id="panel5" class="panel" onclick="showChart(5)">Panel 5: Loading...</div>
-    <div id="panel6" class="panel" onclick="showChart(6)">Panel 6: Loading...</div>
-    
-    <div id="dropdown-container">
-        <label for="startDateSelect">Select Start Date for Energy Calculation:</label>
-        <select id="startDateSelect" onchange="updateEnergyCalculations()">
-            <!-- Options will be populated dynamically -->
-        </select>
-    </div>
-    
-    <div id="chartContainer">
-        <canvas id="panelChart"></canvas>
-    </div>
-
     <script>
         const SHEET_ID = '1wdVWslNkaJgDDiSBKXIS5Ka7UQGLs_RbIymFPuNj0kY';
-        const API_KEY = 'AIzaSyDIoC1hZ3tbZgyiz_cRb0vhxM7usy2aI9M';  // Use your actual API key
-        const RANGE = 'Sheet1!A1:L100'; // Adjust range to include enough data
-
-        let sheetData = [];  // Global variable to store fetched data
-        let currentChart = null;  // To store the currently active chart
+        const API_KEY = 'AIzaSyDIoC1hZ3tbZgyiz_cRb0vhxM7usy2aI9M';
+        const RANGE = 'Sheet1!A1:D1000';
 
         async function fetchData() {
             const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}`;
-            try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                sheetData = data.values;  // Store data in the global variable
-                populateDropdown(sheetData);
-                return sheetData;
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                return [];
-            }
+            const response = await fetch(url);
+            const data = await response.json();
+            return data.values;
         }
 
-        function populateDropdown(data) {
-            const dropdown = document.getElementById('startDateSelect');
-            dropdown.innerHTML = ''; // Clear existing options
+        function calculateTotalEnergy(data, panelIndex, startDateTime) {
+            let totalEnergy = 0;
+            let previousTimestamp = null;
 
-            data.slice(1).forEach((row, index) => {
-                const option = document.createElement('option');
-                option.value = index + 1; // Skip header row
-                option.textContent = row[0]; // Display time/date
-                dropdown.appendChild(option);
-            });
-        }
+            for (let i = 1; i < data.length; i++) {
+                let row = data[i];
+                let currentTimestamp = new Date(row[0]);
 
-        function calculateEnergyYield(panelIndex, startIndex) {
-            let energyYield = 0;
-            let interval = 5 / 60; // 5 minutes interval converted to hours
+                if (currentTimestamp < startDateTime) {
+                    continue;
+                }
 
-            for (let i = startIndex; i < sheetData.length; i++) { // Start from the selected index
-                const row = sheetData[i];
-                const current = parseFloat(row[3 + (panelIndex * 2)]);
-                const voltage = parseFloat(row[4 + (panelIndex * 2)]);
+                let current = parseFloat(row[2 * panelIndex + 3]);
+                let voltage = parseFloat(row[2 * panelIndex + 4]);
+                if (!isNaN(current) && !isNaN(voltage)) {
+                    let power = current * voltage;
 
-                if (!isNaN(current) && !isNaN(voltage)) { // Ensure both values are numbers
-                    const power = current * voltage;
-                    energyYield += power * interval;
+                    if (previousTimestamp) {
+                        let timeDiffHours = (currentTimestamp - previousTimestamp) / (1000 * 60 * 60);
+                        totalEnergy += (power * timeDiffHours) / 1000;
+                    }
+
+                    previousTimestamp = currentTimestamp;
                 }
             }
 
-            return energyYield.toFixed(2);
+            return totalEnergy.toFixed(2);
         }
 
-        function updateEnergyCalculations() {
-            const startIndex = parseInt(document.getElementById('startDateSelect').value);
-            updateDashboard(sheetData, startIndex);
-        }
+        function updateDashboard(data) {
+            let selectedDate = document.getElementById('startDateSelect').value;
+            let startDateTime = new Date(selectedDate);
 
-        function updateDashboard(data, startIndex = 1) {
-            if (data.length < 2) {
-                console.error('No data found');
-                return;
-            }
+            document.getElementById('timestamp').innerText = `Time/Date: ${data[data.length - 1][0]}`;
+            document.getElementById('tempHumidity').innerText = `Temp: ${data[data.length - 1][1]}, Humidity: ${data[data.length - 1][2]}, Irradiance: ${data[data.length - 1][data[0].length - 1]}`;
 
-            // Extract the latest data row
-            const latestData = data[data.length - 1];
+            for (let panelIndex = 0; panelIndex < 6; panelIndex++) {
+                let panelElement = document.getElementById(`panel${panelIndex + 1}`);
+                let current = parseFloat(data[data.length - 1][2 * panelIndex + 3]);
+                let voltage = parseFloat(data[data.length - 1][2 * panelIndex + 4]);
+                let power = (current && voltage) ? (current * voltage).toFixed(2) : "0.00";
+                let energyYield = calculateTotalEnergy(data, panelIndex, startDateTime);
 
-            // Update panels
-            document.getElementById('timeDatePanel').innerHTML = `Time/Date: ${latestData[0]}`;
-            document.getElementById('tempHumPanel').innerHTML = `Temp: ${latestData[1]}, Humidity: ${latestData[2]}, Irradiance: ${latestData[19]}`;
-
-            // Update each panel
-            for (let i = 0; i < 6; i++) {
-                const current = parseFloat(latestData[3 + (i * 2)]);
-                const voltage = parseFloat(latestData[4 + (i * 2)]);
-                const power = (current * voltage).toFixed(2);
-                const energyYield = calculateEnergyYield(i, startIndex);
-                document.getElementById(`panel${i+1}`).innerHTML = `
-                    Panel ${i+1}<br>
-                    Current: ${isNaN(current) ? 'N/A' : current.toFixed(2)} A<br>
-                    Voltage: ${isNaN(voltage) ? 'N/A' : voltage.toFixed(2)} V<br>
-                    Power: ${isNaN(power) ? 'N/A' : power} W<br>
-                    Energy Yield: ${isNaN(energyYield) ? 'N/A' : energyYield} kWh
+                panelElement.innerHTML = `
+                    <strong>Panel ${panelIndex + 1}</strong><br>
+                    Current: ${isNaN(current) ? "N/A" : current.toFixed(2)} A<br>
+                    Voltage: ${isNaN(voltage) ? "N/A" : voltage.toFixed(2)} V<br>
+                    Power: ${power} W<br>
+                    Energy Yield: ${energyYield} kWh
                 `;
             }
         }
 
-        function showChart(panelIndex) {
-            if (sheetData.length < 2) {
-                console.error('No data available to show chart');
-                return;
-            }
+        function populateDateDropdown(data) {
+            let select = document.getElementById('startDateSelect');
+            select.innerHTML = ''; // Clear existing options
 
-            // Destroy the previous chart if it exists
-            if (currentChart) {
-                currentChart.destroy();
-            }
-
-            document.getElementById('chartContainer').style.display = 'block';
-
-            const labels = sheetData.slice(1).map(row => row[0]); // Time/Date
-            const currentData = sheetData.slice(1).map(row => parseFloat(row[3 + (panelIndex - 1) * 2]));
-            const voltageData = sheetData.slice(1).map(row => parseFloat(row[4 + (panelIndex - 1) * 2]));
-            const powerData = currentData.map((curr, idx) => {
-                const voltage = voltageData[idx];
-                return !isNaN(curr) && !isNaN(voltage) ? curr * voltage : NaN;
+            data.slice(1).forEach(row => {
+                let option = document.createElement('option');
+                option.value = row[0];
+                option.text = row[0];
+                select.appendChild(option);
             });
+        }
 
-            currentChart = new Chart(document.getElementById('panelChart'), {
+        function showChart(data, panelIndex) {
+            let ctx = document.getElementById('panelChart').getContext('2d');
+            let labels = data.slice(1).map(row => row[0]);
+            let currentData = data.slice(1).map(row => parseFloat(row[2 * panelIndex + 3]));
+            let voltageData = data.slice(1).map(row => parseFloat(row[2 * panelIndex + 4]));
+            let powerData = currentData.map((current, i) => current * voltageData[i]);
+
+            if (window.panelChart) {
+                window.panelChart.destroy();
+            }
+
+            window.panelChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
@@ -196,37 +102,89 @@
                             label: 'Current (A)',
                             data: currentData,
                             borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1,
                             fill: false
                         },
                         {
                             label: 'Voltage (V)',
                             data: voltageData,
                             borderColor: 'rgb(255, 99, 132)',
+                            tension: 0.1,
                             fill: false
                         },
                         {
                             label: 'Power (W)',
                             data: powerData,
                             borderColor: 'rgb(54, 162, 235)',
+                            tension: 0.1,
                             fill: false
                         }
                     ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { display: true, title: { display: true, text: 'Timestamp' } },
+                        y: { display: true, title: { display: true, text: 'Values' } }
+                    }
                 }
             });
         }
 
-        // Initial call to fetch and display data
-        fetchData().then(data => {
+        window.onload = async function () {
+            let data = await fetchData();
+            populateDateDropdown(data);
             updateDashboard(data);
-        });
 
-        // Set interval to refresh data every 5 minutes
-        setInterval(() => {
-            fetchData().then(data => {
-                updateDashboard(data);
+            document.querySelectorAll('.panel').forEach((panel, index) => {
+                panel.onclick = () => showChart(data, index);
             });
-        }, 300000); // 300000 ms = 5 minutes
 
+            document.getElementById('startDateSelect').onchange = () => updateDashboard(data);
+        };
     </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .panel {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px;
+            width: 200px;
+            text-align: center;
+            cursor: pointer;
+        }
+        #dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        #panelChart {
+            max-width: 800px;
+            max-height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <h1>SafaSun by LAB7</h1>
+    <div id="dashboard">
+        <div class="panel" id="timestamp">Time/Date: Loading...</div>
+        <div class="panel" id="tempHumidity">Temp: Loading...</div>
+        <div class="panel" id="panel1">Panel 1</div>
+        <div class="panel" id="panel2">Panel 2</div>
+        <div class="panel" id="panel3">Panel 3</div>
+        <div class="panel" id="panel4">Panel 4</div>
+        <div class="panel" id="panel5">Panel 5</div>
+        <div class="panel" id="panel6">Panel 6</div>
+    </div>
+    <label for="startDateSelect">Select Start Date for Energy Calculation:</label>
+    <select id="startDateSelect"></select>
+    <canvas id="panelChart"></canvas>
 </body>
 </html>
