@@ -88,19 +88,22 @@
         let currentChart = null;
 
         async function fetchData() {
-            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}`;
-            try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                sheetData = data.values;
-                populateDropdown(sheetData);
-                return sheetData;
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                return [];
-            }
-        }
+    console.log("Fetching data from Google Sheets..."); // Debugging log
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}`;
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        console.log("Data fetched successfully:", data); // Debugging log
+        sheetData = data.values;  // Store data in the global variable
+        populateDropdown(sheetData);
+        return sheetData;
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        return [];
+    }
+}
+
 
         function populateDropdown(data) {
             const dropdown = document.getElementById('startDateSelect');
