@@ -87,7 +87,7 @@
         let sheetData = [];
         let currentChart = null;
 
-       async function fetchData() {
+  async function fetchData() {
     console.log("Fetching data from Google Sheets...");
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}`;
     try {
@@ -98,7 +98,7 @@
         sheetData = data.values;  // Store data in the global variable
 
         // Log the content of the first few rows for debugging
-        console.log("First 5 rows of Sheet Data:", sheetData.slice(0, 5));
+        console.log("Sheet Data:", sheetData);
 
         populateDropdown(sheetData);
         updateDashboard(sheetData); // Ensure this function is called after data fetch
@@ -109,6 +109,10 @@
     }
 }
 
+// Adjust the range to include more rows
+const RANGE = 'Sheet1!A1:L'; // Adjust to fetch all data without row limits
+
+// Update Dashboard Function remains the same
 function updateDashboard(data, startIndex = 1) {
     if (data.length < 2) {
         console.error('No data found');
@@ -152,6 +156,7 @@ setInterval(() => {
         updateDashboard(data);
     });
 }, 300000); // 300000 ms = 5 minutes
+
 
 
 
