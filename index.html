@@ -82,84 +82,32 @@
     <script>
         const SHEET_ID = '1wdVWslNkaJgDDiSBKXIS5Ka7UQGLs_RbIymFPuNj0kY';
         const API_KEY = 'AIzaSyDIoC1hZ3tbZgyiz_cRb0vhxM7usy2aI9M';
-        const RANGE = 'Sheet1!A1:L100'; // Adjust range to include enough data
+        const RANGE = 'Sheet1!A1:L'; // Adjust to fetch all data without row limits
 
         let sheetData = [];
         let currentChart = null;
 
-  async function fetchData() {
-    console.log("Fetching data from Google Sheets...");
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}`;
-    try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        console.log("Data fetched successfully:", data);
-        sheetData = data.values;  // Store data in the global variable
+        async function fetchData() {
+            console.log("Fetching data from Google Sheets...");
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                console.log("Data fetched successfully:", data);
+                sheetData = data.values;  // Store data in the global variable
 
-        // Log the content of the first few rows for debugging
-        console.log("Sheet Data:", sheetData);
+                // Log the content of the first few rows for debugging
+                console.log("Sheet Data:", sheetData);
 
-        populateDropdown(sheetData);
-        updateDashboard(sheetData); // Ensure this function is called after data fetch
-        return sheetData;
-    } catch (error) {
-        console.error('Error fetching data:', error);
-        return [];
-    }
-}
-
-// Adjust the range to include more rows
-const RANGE = 'Sheet1!A1:L'; // Adjust to fetch all data without row limits
-
-// Update Dashboard Function remains the same
-function updateDashboard(data, startIndex = 1) {
-    if (data.length < 2) {
-        console.error('No data found');
-        return;
-    }
-
-    // Extract the latest data row
-    const latestData = data[data.length - 1];
-
-    // Debugging log to verify the latest data
-    console.log("Latest data row:", latestData);
-
-    // Update panels with the latest data
-    document.getElementById('timeDatePanel').innerHTML = `Time/Date: ${latestData[0]}`;
-    document.getElementById('tempHumPanel').innerHTML = `Temp: ${latestData[1]}, Humidity: ${latestData[2]}, Irradiance: ${latestData[19]}`;
-
-    // Update each panel
-    for (let i = 0; i < 6; i++) {
-        const current = parseFloat(latestData[3 + (i * 2)]);
-        const voltage = parseFloat(latestData[4 + (i * 2)]);
-        const power = (current * voltage).toFixed(2);
-        const energyYield = calculateEnergyYield(i, startIndex);
-        document.getElementById(`panel${i+1}`).innerHTML = `
-            Panel ${i+1}<br>
-            Current: ${isNaN(current) ? 'N/A' : current.toFixed(2)} A<br>
-            Voltage: ${isNaN(voltage) ? 'N/A' : voltage.toFixed(2)} V<br>
-            Power: ${isNaN(power) ? 'N/A' : power} W<br>
-            Energy Yield: ${isNaN(energyYield) ? 'N/A' : energyYield} kWh
-        `;
-    }
-}
-
-// Initial call to fetch and display data
-fetchData().then(data => {
-    updateDashboard(data);
-});
-
-// Set interval to refresh data every 5 minutes
-setInterval(() => {
-    fetchData().then(data => {
-        updateDashboard(data);
-    });
-}, 300000); // 300000 ms = 5 minutes
-
-
-
-
+                populateDropdown(sheetData);
+                updateDashboard(sheetData); // Ensure this function is called after data fetch
+                return sheetData;
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                return [];
+            }
+        }
 
         function populateDropdown(data) {
             const dropdown = document.getElementById('startDateSelect');
