@@ -97,8 +97,8 @@
         console.log("Data fetched successfully:", data);
         sheetData = data.values;  // Store data in the global variable
 
-        // Log the fetched data to inspect its content
-        console.log("Sheet Data:", sheetData);
+        // Log the content of the first few rows for debugging
+        console.log("First 5 rows of Sheet Data:", sheetData.slice(0, 5));
 
         populateDropdown(sheetData);
         updateDashboard(sheetData); // Ensure this function is called after data fetch
@@ -140,6 +140,19 @@ function updateDashboard(data, startIndex = 1) {
         `;
     }
 }
+
+// Initial call to fetch and display data
+fetchData().then(data => {
+    updateDashboard(data);
+});
+
+// Set interval to refresh data every 5 minutes
+setInterval(() => {
+    fetchData().then(data => {
+        updateDashboard(data);
+    });
+}, 300000); // 300000 ms = 5 minutes
+
 
 
 
