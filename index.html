@@ -58,8 +58,8 @@
 <body>
 
     <div id="safasun-title">SafaSun by LAB7</div>
-    <div id="timeDatePanel" class="panel">Time/Date: Loading...</div>
-    <div id="tempHumPanel" class="panel">Loading...</div>
+    <div id="timeDatePanel" class="panel" onclick="showTempHumChart()">Time/Date: Loading...</div>
+    <div id="tempHumPanel" class="panel" onclick="showTempHumChart()">Loading...</div>
     
     <div id="panel1" class="panel" onclick="showChart(1)">Panel 1: Loading...</div>
     <div id="panel2" class="panel" onclick="showChart(2)">Panel 2: Loading...</div>
@@ -192,9 +192,10 @@
 
             document.getElementById('chartContainer').style.display = 'block';
 
-            const labels = sheetData.slice(1).map(row => row[0]);
-            const currentData = sheetData.slice(1).map(row => parseFloat(row[3 + (panelIndex - 1) * 2]));
-            const voltageData = sheetData.slice(1).map(row => parseFloat(row[4 + (panelIndex - 1) * 2]));
+            const startIndex = parseInt(document.getElementById('startDateSelect').value);
+            const labels = sheetData.slice(startIndex).map(row => row[0]);
+            const currentData = sheetData.slice(startIndex).map(row => parseFloat(row[3 + (panelIndex - 1) * 2]));
+            const voltageData = sheetData.slice(startIndex).map(row => parseFloat(row[4 + (panelIndex - 1) * 2]));
             const powerData = currentData.map((curr, idx) => {
                 const voltage = voltageData[idx];
                 return !isNaN(curr) && !isNaN(voltage) ? curr * voltage : NaN;
@@ -221,6 +222,45 @@
                             label: 'Power (W)',
                             data: powerData,
                             borderColor: 'rgb(54, 162, 235)',
+                            fill: false
+                        }
+                    ]
+                }
+            });
+        }
+
+        function showTempHumChart() {
+            if (sheetData.length < 2) {
+                console.error('No data available to show chart');
+                return;
+            }
+
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            document.getElementById('chartContainer').style.display = 'block';
+
+            const startIndex = parseInt(document.getElementById('startDateSelect').value);
+            const labels = sheetData.slice(startIndex).map(row => row[0]);
+            const tempData = sheetData.slice(startIndex).map(row => parseFloat(row[1]));
+            const humData = sheetData.slice(startIndex).map(row => parseFloat(row[2]));
+
+            currentChart = new Chart(document.getElementById('panelChart'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Temperature (C)',
+                            data: tempData,
+                            borderColor: 'rgb(255, 165, 0)',
+                            fill: false
+                        },
+                        {
+                            label: 'Humidity (%)',
+                            data: humData,
+                            borderColor: 'rgb(30, 144, 255)',
                             fill: false
                         }
                     ]
